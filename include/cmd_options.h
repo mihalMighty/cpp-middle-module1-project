@@ -11,11 +11,7 @@ public:
     ProgramOptions();
     ~ProgramOptions();
 
-    enum class COMMAND_TYPE {
-        ENCRYPT,
-        DECRYPT,
-        CHECKSUM,
-    };
+    enum class COMMAND_TYPE { ENCRYPT, DECRYPT, CHECKSUM, UNKNOWN };
 
     void Parse(int argc, char *argv[]);
 
@@ -32,6 +28,7 @@ private:
         {"checksum", ProgramOptions::COMMAND_TYPE::CHECKSUM},
     };
 
+    std::string _command_;
     std::string inputFile_;
     std::string outputFile_;
     std::string password_;
