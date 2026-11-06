@@ -1,12 +1,12 @@
 #include "crypto_guard_ctx.h"
 #include <array>
+#include <iomanip>
 #include <iostream>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <sstream>
 #include <stdexcept>
 #include <string.h>
-
 
 namespace CryptoGuard {
 
@@ -58,7 +58,11 @@ void CryptoGuardCtx::Impl::EnDecrypt(std::iostream &inStream, std::iostream &out
 
     using ctx_ptr = std::unique_ptr<EVP_CIPHER_CTX, decltype([](EVP_CIPHER_CTX *ctx) { EVP_CIPHER_CTX_free(ctx); })>;
 
-    auto print_err = []() { throw std::runtime_error{ERR_error_string(ERR_get_error(), nullptr)}; };
+    auto print_err = []() {
+        auto err = ERR_get_error();
+        if (err)
+            throw std::runtime_error{ERR_error_string(err, nullptr)};
+    };
 
     auto params = CreateCiperParamsFromPassword(password);
     params.encrypt = !decrypt;
@@ -73,30 +77,38 @@ void CryptoGuardCtx::Impl::EnDecrypt(std::iostream &inStream, std::iostream &out
         print_err();
 
     const short bufSz = 1024;
-    unsigned char inbuf[bufSz], outbuf[bufSz + EVP_MAX_BLOCK_LENGTH];
-    int inlen = 0, outlen = 0;
+    std::array<unsigned char, bufSz> inbuf;
+    std::array<unsigned char, bufSz + EVP_MAX_BLOCK_LENGTH> outbuf;
+    int inlen = 0, outlen = 0, total = 0 /*общее число прочитанных байт*/;
 
     // Обновление данными ввода.
     for (;;) {
-        inStream.read((char *)inbuf, bufSz);  // C-style, static_cast не справляется
+        inStream.read(reinterpret_cast<char *>(inbuf.data()), bufSz);
         inlen = inStream.gcount();
         if (inlen) {
-            if (!EVP_CipherUpdate(ctx.get(), outbuf, &outlen, inbuf, inlen))
+            if (!EVP_CipherUpdate(ctx.get(), outbuf.data(), &outlen, inbuf.data(), inlen))
                 print_err();
-            outStream.write((char *)outbuf, outlen);
+            outStream.write(reinterpret_cast<char *>(outbuf.data()), outlen);
+            if (outStream.bad())
+                throw std::runtime_error{decrypt ? "outStream.bad() while decrypting"
+                                                 : "outStream.bad() while encrypting"};
+            total += inlen;
         }
-        if (!inStream)
+
+        // проблема
+        if (inStream.bad())
+            throw std::runtime_error{decrypt ? "inStream.bad() while decrypting" : "inStream.bad() while encrypting"};
+        // конец файла
+        else if (inStream.eof())
             break;
     }
 
     // Формирование результата.
-    if (inlen) {
-        if (!EVP_CipherFinal_ex(ctx.get(), outbuf, &outlen))
+    if (total) {
+        if (!EVP_CipherFinal_ex(ctx.get(), outbuf.data(), &outlen))
             print_err();
-        outStream.write((char *)outbuf, outlen);
+        outStream.write((char *)outbuf.data(), outlen);
     }
-
-    EVP_CIPHER_CTX_cleanup(ctx.get());
 }
 
 void CryptoGuardCtx::Impl::EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
@@ -116,11 +128,15 @@ std::string CryptoGuardCtx::Impl::CalculateChecksum(std::iostream &inStream) {
         throw std::runtime_error{"!inStream while calculating checksum"};
 
     const short bufSz = 1024;
-    unsigned char inbuf[bufSz];
-    unsigned char md_value[EVP_MAX_MD_SIZE];
+    std::array<unsigned char, bufSz> inbuf;
+    std::array<unsigned char, EVP_MAX_MD_SIZE> md_value;
     unsigned md_len;
 
-    auto print_err = []() { throw std::runtime_error{ERR_error_string(ERR_get_error(), nullptr)}; };
+    auto print_err = []() {
+        auto err = ERR_get_error();
+        if (err)
+            throw std::runtime_error{ERR_error_string(err, nullptr)};
+    };
 
     // Создание контекста.
     ctx_ptr mdctx(EVP_MD_CTX_new());
@@ -133,23 +149,25 @@ std::string CryptoGuardCtx::Impl::CalculateChecksum(std::iostream &inStream) {
 
     // Обновление данными ввода.
     for (;;) {
-        inStream.read((char *)inbuf, bufSz);
+        inStream.read(reinterpret_cast<char *>(inbuf.data()), bufSz);
         if (int inlen = inStream.gcount())
-            if (!EVP_DigestUpdate(mdctx.get(), inbuf, inlen))
+            if (!EVP_DigestUpdate(mdctx.get(), inbuf.data(), inlen))
                 print_err();
-        if (!inStream)
+        // проблема
+        if (inStream.bad())
+            throw std::runtime_error{"inStream.bad() while calculating checksum"};
+        // конец файла
+        else if (inStream.eof())
             break;
     }
 
     // Формирование результата.
-    if (!EVP_DigestFinal_ex(mdctx.get(), md_value, &md_len))
+    if (!EVP_DigestFinal_ex(mdctx.get(), md_value.data(), &md_len))
         print_err();
 
     std::stringstream ret;
     for (size_t i = 0; i < md_len; ++i)
-        ret << std::hex << static_cast<int>(md_value[i]);
-
-    // EVP_MD_CTX_cleanup(mdctx.get()); // undeclared identifier ..
+        ret << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(md_value[i]);
 
     return ret.str();
 }

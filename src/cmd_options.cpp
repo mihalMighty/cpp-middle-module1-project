@@ -17,7 +17,7 @@ ProgramOptions::ProgramOptions() : desc_("Allowed options") {
         // Опция --help - список доступных опций
         ("help,h", "show help")
         // Опция --command cmnd — команда encrypt, decrypt или checksum -> command_
-        ("command,c", po::value(&_command_)->value_name("cmnd"), "encrypt, decrypt or checksum")
+        ("command,c", po::value(&_command_)->value_name("cmnd") /*->required()*/, "encrypt, decrypt or checksum")
         // Опция --input file — путь до входного файла -> inputFile_
         ("input,i", po::value(&inputFile_)->value_name("file"), "input file name")
         // Опция --output file — путь до файла, в котором будет сохранён результат -> outputFile_

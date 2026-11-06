@@ -30,7 +30,7 @@ TEST(ProgramOptions, Help) {
     CryptoGuard::ProgramOptions po;
     const char *argv[] = {"./CryptoGuard", "--help"};
 
-    po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+    po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
 
     CheckOptionsState(po);
 }
@@ -41,7 +41,7 @@ TEST(ProgramOptions, Encrypt) {
     const char *argv[] = {"./CryptoGuard", "--command", "encrypt",    "--input", "in",
                           "--output",      "out",       "--password", "pswd"};
 
-    po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+    po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
 
     CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::ENCRYPT, "in", "out", "pswd");
 }
@@ -52,7 +52,7 @@ TEST(ProgramOptions, Decrypt) {
     const char *argv[] = {"./CryptoGuard", "--command", "decrypt",    "--input", "in",
                           "--output",      "out",       "--password", "pswd"};
 
-    po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+    po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
 
     CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::DECRYPT, "in", "out", "pswd");
 }
@@ -61,7 +61,7 @@ TEST(ProgramOptions, Decrypt) {
 TEST(ProgramOptions, Checksum) {
     CryptoGuard::ProgramOptions po;
     const char *argv[] = {"./CryptoGuard", "--command", "checksum", "--input", "in"};
-    po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+    po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
 
     CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::CHECKSUM, "in");
 }
@@ -72,7 +72,7 @@ TEST(ProgramOptions, EncryptNoInput) {
     const char *argv[] = {"./CryptoGuard", "--command", "encrypt"};
 
     try {
-        po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+        po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
     } catch (...) {
         CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::ENCRYPT);
     }
@@ -84,7 +84,7 @@ TEST(ProgramOptions, EncryptNoOutput) {
     const char *argv[] = {"./CryptoGuard", "--command", "encrypt", "--input", "in"};
 
     try {
-        po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+        po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
     } catch (...) {
         CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::ENCRYPT, "in");
     }
@@ -96,7 +96,7 @@ TEST(ProgramOptions, EncryptNoPassword) {
     const char *argv[] = {"./CryptoGuard", "--command", "encrypt", "--input", "in", "--output", "out"};
 
     try {
-        po.Parse(sizeof(argv) / sizeof(argv[0]), (char **)argv);
+        po.Parse(sizeof(argv) / sizeof(argv[0]), const_cast<char **>(argv));
     } catch (...) {
         CheckOptionsState(po, ProgramOptions::COMMAND_TYPE::ENCRYPT, "in", "out");
     }

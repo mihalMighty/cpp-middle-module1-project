@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
             std::fstream fi;
             open_file(fi, options.GetInputFile().c_str(), "Error opening input file");
 
-            std::print("Checksum: {}\n", cryptoCtx.CalculateChecksum(fi));
+            // std::print("Checksum: {}\n", cryptoCtx.CalculateChecksum(fi));
 
             fi.close();
         } break;
